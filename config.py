@@ -1,27 +1,10 @@
-"""
-╔══════════════════════════════════════════════════════════╗
-║                     config.py                            ║
-║  ✏️  EDITA ESTE ARCHIVO PARA CAMBIAR:                    ║
-║     - Nombre del bot / marca                             ║
-║     - Wallets de crypto                                   ║
-║     - Métodos de pago                                    ║
-║     - Recargo de Zelle                                   ║
-╚══════════════════════════════════════════════════════════╝
-"""
+import os
 
-# ── 1. NOMBRE DE TU NEGOCIO ─────────────────────────────
 BOT_NAME = "🔓 ImeiLocked Services"
-
-# ── 2. TOKEN DEL BOT ────────────────────────────────────
-BOT_TOKEN = "8991066745:AAHUNgR0FvfGxoAGeX1Z0fQVlFhSeFdGGM8"
-
-# ── 3. TU CHAT ID ───────────────────────────────────────
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 ADMIN_CHAT_ID = "1482942049"
-
-# ── 4. RECARGO POR ZELLE ────────────────────────────────
 ZELLE_SURCHARGE_PERCENT = 10
 
-# ── 5. WALLETS CRYPTO ───────────────────────────────────
 CRYPTO_WALLETS = {
     "usdt_trc20": {
         "label": "💚 USDT TRC20 (Tron)",
@@ -43,7 +26,6 @@ CRYPTO_WALLETS = {
     },
 }
 
-# ── 6. MÉTODOS DE PAGO ──────────────────────────────────
 PAYMENT_METHODS = [
     {
         "id": "usdt_trc20",
@@ -68,13 +50,13 @@ PAYMENT_METHODS = [
         "label": f"🏦 Zelle (+{ZELLE_SURCHARGE_PERCENT}% fee)",
         "crypto_id": None,
         "auto": False,
-        "address": "",   # ← Pon tu Zelle aquí
+        "address": "",
     },
     {
         "id": "paypal",
         "label": "🔵 PayPal",
         "crypto_id": None,
         "auto": False,
-        "address": "",   # ← Pon tu PayPal aquí
+        "address": "",
     },
 ]
