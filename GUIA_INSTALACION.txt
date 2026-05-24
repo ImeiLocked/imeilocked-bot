@@ -1,0 +1,131 @@
+# 🤖 GUÍA DE INSTALACIÓN — UNLOCK BOT v2
+# ════════════════════════════════════════════════════════════
+
+## 📁 ARCHIVOS DEL BOT
+────────────────────────────────────────────────────────────
+bot.py                → Motor principal (no tocar)
+config.py             → ⭐ TUS DATOS: token, chat ID, wallets, Zelle
+services.py           → ⭐ TODOS LOS SERVICIOS y precios
+texts.py              → ⭐ Mensajes al cliente (español/inglés)
+qr_usdt_trc20.jpg     → ⭐ QR de tu wallet USDT TRC20
+requirements.txt      → Librerías necesarias
+
+
+## ✏️ CAMBIOS RÁPIDOS
+────────────────────────────────────────────────────────────
+
+### Cambiar nombre del negocio:
+config.py → BOT_NAME = "🔓 TuNombre Services"
+
+### Cambiar recargo Zelle:
+config.py → ZELLE_SURCHARGE_PERCENT = 10
+
+### Cambiar/agregar wallet crypto:
+config.py → CRYPTO_WALLETS → "address": "TU_WALLET"
+
+### Agregar QR de otra crypto:
+1. Guarda la imagen del QR en la carpeta del bot (ej: qr_btc.jpg)
+2. config.py → CRYPTO_WALLETS → "btc" → "qr_image": "qr_btc.jpg"
+
+### Cambiar precio de un servicio:
+services.py → busca el servicio → "price": 99.00
+
+### Agregar servicio nuevo:
+services.py → busca la categoría → agrega:
+    {
+        "id": "nuevo_id_01",
+        "name": {"es": "Nombre ES", "en": "Name EN"},
+        "price": 50.00,
+        "time": "1-24 Horas",
+    },
+
+### Agregar categoría nueva:
+services.py → al final agrega:
+    "🦗 CRICKET": [
+        { ...servicios... },
+    ],
+
+### Agregar método de pago:
+config.py → PAYMENT_METHODS → agrega:
+    {
+        "id": "cashapp",
+        "label": "💚 CashApp",
+        "crypto_id": None,
+        "auto": False,
+        "address": "$TuCashApp",
+    },
+
+
+## 🚀 INSTALACIÓN PASO A PASO
+────────────────────────────────────────────────────────────
+
+PASO 1 — Crear el bot en Telegram
+   1. Abre Telegram → busca @BotFather
+   2. Escribe: /newbot
+   3. Ponle nombre y username
+   4. Copia el TOKEN que te da
+
+PASO 2 — Obtener tu Chat ID
+   1. Telegram → busca @userinfobot
+   2. Escribe: /start
+   3. Copia tu ID (número)
+
+PASO 3 — Editar config.py
+   BOT_TOKEN = "PEGA_TU_TOKEN"
+   ADMIN_CHAT_ID = "PEGA_TU_ID"
+
+PASO 4 — Cuenta gratuita en Railway
+   1. Ve a https://railway.app
+   2. Crea cuenta con GitHub (gratis)
+   3. New Project → Deploy from GitHub
+      (o arrastra los archivos directamente)
+
+PASO 5 — Subir TODOS estos archivos:
+   bot.py
+   config.py
+   services.py
+   texts.py
+   requirements.txt
+   qr_usdt_trc20.jpg   ← ¡No olvides el QR!
+
+PASO 6 — Deploy
+   Railway lo activa solo. El bot queda 24/7.
+
+
+## 📲 CÓMO USAR EL BOT COMO ADMIN
+────────────────────────────────────────────────────────────
+
+Cuando un cliente haga un pedido recibirás:
+────────────────────────────────────
+🔔 NEW ORDER
+👤 Client: Juan Pérez
+🆔 Telegram: @juanperez (123456789)
+📱 Service: T-Mobile iPhone 15 Premium
+🔢 IMEI: 123456789012345
+📧 Email: juan@gmail.com
+💳 Payment: USDT TRC20
+💰 Amount: $100.00
+⏱ ETA: 1-24 Horas
+────────────────────────────────────
+👉 Reply with: /pay 123456789
+
+OPCIÓN A — Enviar wallet + QR automáticamente (CRYPTO):
+   Escríbele al bot:
+   /paycrypto 123456789 usdt_trc20
+   → El bot envía la wallet y el QR al cliente solo ✅
+
+OPCIÓN B — Enviar instrucciones manuales (ZELLE/PAYPAL):
+   Escríbele al bot:
+   /pay 123456789
+   → El bot te dice "listo, escribe el siguiente mensaje"
+   → Escribe: "Envía $100 al Zelle: tunumero@email.com"
+   → El bot lo reenvía al cliente ✅
+
+
+## ⚠️ NOTAS IMPORTANTES
+────────────────────────────────────────────────────────────
+- Guarda siempre copia de config.py y services.py
+- Cada vez que edites un archivo, sube los cambios a Railway
+- Railway es gratis para proyectos pequeños
+- Si Railway pide tarjeta, usa Render.com (también gratis)
+- El QR que subiste (qr_usdt_trc20.jpg) es permanente ✅
