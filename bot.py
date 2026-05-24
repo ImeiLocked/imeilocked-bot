@@ -12,7 +12,7 @@ from texts import TEXTS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-LANG, CATEGORY, SERVICE, IMEI, EMAIL, PAYMENT, CONFIRM = range(7)
+LANG, COMPANY, SUBCATEGORY, SERVICE, IMEI, EMAIL, PAYMENT, CONFIRM = range(8)
 
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data.clear()
@@ -34,39 +34,60 @@ async def set_language(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["lang"] = lang
     t = TEXTS[lang]
     keyboard = []
-    for cat in SERVICES.keys():
-        keyboard.append([InlineKeyboardButton(cat, callback_data=f"cat_{cat}")])
+    for company in SERVICES.keys():
+        keyboard.append([InlineKeyboardButton(company, callback_data=f"company_{company}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
     await query.edit_message_text(
         t["welcome"].format(name=BOT_NAME),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    return CATEGORY
+    return COMPANY
 
-async def select_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def select_company(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
-    cat = query.data.replace("cat_", "")
-    ctx.user_data["category"] = cat
+    company = query.data.replace("company_", "")
+    ctx.user_data["company"] = company
+    subcategories = SERVICES[company]
+    keyboard = []
+    for subcat in subcategories.keys():
+        keyboard.append([InlineKeyboardButton(subcat, callback_data=f"subcat_{subcat}")])
+    keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_companies")])
+    if lang == "es":
+        msg = f"📂 *{company}*\n\nSelecciona una subcategoría:"
+    else:
+        msg = f"📂 *{company}*\n\nSelect a subcategory:"
+    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    return SUBCATEGORY
 
-    services_list = SERVICES[cat]
+async def select_subcategory(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    lang = ctx.user_data.get("lang", "en")
+    t = TEXTS[lang]
+    subcat = query.data.replace("subcat_", "")
+    ctx.user_data["subcategory"] = subcat
+    company = ctx.user_data["company"]
+    services_list = SERVICES[company][subcat]
     ctx.user_data["current_services"] = services_list
 
     if lang == "es":
-        msg = f"*{cat}*\n\nElige el número del servicio que deseas:\n\n"
+        msg = f"📂 *{company}*\n➡️ *{subcat}*\n\n"
+        msg += "Elige el número del servicio que deseas:\n\n"
         for i, svc in enumerate(services_list, 1):
             msg += f"*{i}.* {svc['name']['es']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
         msg += "✏️ _Escribe el número del servicio:_"
     else:
-        msg = f"*{cat}*\n\nChoose the number of the service you want:\n\n"
+        msg = f"📂 *{company}*\n➡️ *{subcat}*\n\n"
+        msg += "Choose the number of the service you want:\n\n"
         for i, svc in enumerate(services_list, 1):
             msg += f"*{i}.* {svc['name']['en']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
         msg += "✏️ _Type the service number:_"
 
-    keyboard = [[InlineKeyboardButton(t["btn_back"], callback_data="back_categories")]]
+    keyboard = [[InlineKeyboardButton(t["btn_back"], callback_data=f"back_subcategories")]]
     await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     return SERVICE
 
@@ -74,7 +95,6 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     services_list = ctx.user_data.get("current_services", [])
-
     try:
         num = int(update.message.text.strip())
         if num < 1 or num > len(services_list):
@@ -85,12 +105,10 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(f"❌ Please type a number between 1 and {len(services_list)}.")
         return SERVICE
-
     selected = services_list[num - 1]
     ctx.user_data["service"] = selected
     ctx.user_data["service_name"] = selected["name"][lang]
     ctx.user_data["service_price"] = selected["price"]
-
     await update.message.reply_text(
         t["enter_imei"].format(
             service=selected["name"][lang],
@@ -221,9 +239,8 @@ async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     args = ctx.args
     if not args:
         await update.message.reply_text(
-            "Usage:\n"
-            "/pay <user_id>           → next message forwarded to client\n"
-            "/paycrypto <user_id> <crypto_id> → sends wallet + QR automatically\n\n"
+            "Usage:\n/pay <user_id> → next message forwarded to client\n"
+            "/paycrypto <user_id> <crypto_id> → sends wallet + QR\n\n"
             "Crypto IDs: usdt_trc20 | usdt_erc20 | btc"
         )
         return
@@ -282,21 +299,39 @@ async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Message sent to user {target}.")
     ctx.user_data.pop("pending_pay_user", None)
 
-async def back_categories(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def back_companies(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     keyboard = []
-    for cat in SERVICES.keys():
-        keyboard.append([InlineKeyboardButton(cat, callback_data=f"cat_{cat}")])
+    for company in SERVICES.keys():
+        keyboard.append([InlineKeyboardButton(company, callback_data=f"company_{company}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
     await query.edit_message_text(
         t["welcome"].format(name=BOT_NAME),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    return CATEGORY
+    return COMPANY
+
+async def back_subcategories(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    lang = ctx.user_data.get("lang", "en")
+    t = TEXTS[lang]
+    company = ctx.user_data.get("company", "")
+    subcategories = SERVICES[company]
+    keyboard = []
+    for subcat in subcategories.keys():
+        keyboard.append([InlineKeyboardButton(subcat, callback_data=f"subcat_{subcat}")])
+    keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_companies")])
+    if lang == "es":
+        msg = f"📂 *{company}*\n\nSelecciona una subcategoría:"
+    else:
+        msg = f"📂 *{company}*\n\nSelect a subcategory:"
+    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    return SUBCATEGORY
 
 async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -312,22 +347,27 @@ if __name__ == "__main__":
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            LANG:     [CallbackQueryHandler(set_language, pattern="^lang_")],
-            CATEGORY: [
-                CallbackQueryHandler(select_category, pattern="^cat_"),
+            LANG: [CallbackQueryHandler(set_language, pattern="^lang_")],
+            COMPANY: [
+                CallbackQueryHandler(select_company, pattern="^company_"),
+                CallbackQueryHandler(cancel, pattern="^cancel$"),
+            ],
+            SUBCATEGORY: [
+                CallbackQueryHandler(select_subcategory, pattern="^subcat_"),
+                CallbackQueryHandler(back_companies, pattern="^back_companies$"),
                 CallbackQueryHandler(cancel, pattern="^cancel$"),
             ],
             SERVICE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, select_service),
-                CallbackQueryHandler(back_categories, pattern="^back_categories$"),
+                CallbackQueryHandler(back_subcategories, pattern="^back_subcategories$"),
             ],
-            IMEI:     [MessageHandler(filters.TEXT & ~filters.COMMAND, get_imei)],
-            EMAIL:    [MessageHandler(filters.TEXT & ~filters.COMMAND, get_email)],
-            PAYMENT:  [
+            IMEI: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_imei)],
+            EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_email)],
+            PAYMENT: [
                 CallbackQueryHandler(select_payment, pattern="^pay_"),
                 CallbackQueryHandler(cancel, pattern="^cancel$"),
             ],
-            CONFIRM:  [
+            CONFIRM: [
                 CallbackQueryHandler(confirm_order, pattern="^confirm_order$"),
                 CallbackQueryHandler(cancel, pattern="^cancel$"),
             ],
