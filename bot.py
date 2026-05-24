@@ -383,12 +383,10 @@ async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data.clear()
     return ConversationHandler.END
 
-# ════════════════════════════════════════════════════════
-#  MAIN
-# ════════════════════════════════════════════════════════
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+import asyncio
 
+async def run():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -414,7 +412,6 @@ def main():
         },
         fallbacks=[CommandHandler("start", start)],
     )
-
     app.add_handler(conv)
     app.add_handler(CommandHandler("pay", cmd_pay))
     app.add_handler(CommandHandler("paycrypto", cmd_paycrypto))
@@ -422,9 +419,8 @@ def main():
         filters.TEXT & ~filters.COMMAND & filters.User(int(ADMIN_CHAT_ID)),
         forward_payment
     ))
-
     print(f"🤖 {BOT_NAME} is running...")
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(run())
