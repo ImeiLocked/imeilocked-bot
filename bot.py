@@ -21,12 +21,8 @@ from texts import TEXTS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ── Conversation states ──────────────────────────────────
 LANG, CATEGORY, SERVICE, IMEI, EMAIL, PAYMENT, CONFIRM = range(7)
 
-# ════════════════════════════════════════════════════════
-#  /start
-# ════════════════════════════════════════════════════════
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data.clear()
     keyboard = [
@@ -40,21 +36,16 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return LANG
 
-# ════════════════════════════════════════════════════════
-#  LANGUAGE
-# ════════════════════════════════════════════════════════
 async def set_language(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = query.data.split("_")[1]
     ctx.user_data["lang"] = lang
     t = TEXTS[lang]
-
     keyboard = []
     for cat in SERVICES.keys():
         keyboard.append([InlineKeyboardButton(cat, callback_data=f"cat_{cat}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
-
     await query.edit_message_text(
         t["welcome"].format(name=BOT_NAME),
         parse_mode="Markdown",
@@ -62,9 +53,6 @@ async def set_language(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return CATEGORY
 
-# ════════════════════════════════════════════════════════
-#  CATEGORY
-# ════════════════════════════════════════════════════════
 async def select_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -72,13 +60,11 @@ async def select_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     t = TEXTS[lang]
     cat = query.data.replace("cat_", "")
     ctx.user_data["category"] = cat
-
     keyboard = []
     for svc in SERVICES[cat]:
         label = f"{svc['name'][lang]}  💰 ${svc['price']:.2f}  ⏱ {svc['time']}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"svc_{svc['id']}")])
     keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_categories")])
-
     await query.edit_message_text(
         t["select_service"].format(category=cat),
         parse_mode="Markdown",
@@ -86,31 +72,24 @@ async def select_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return SERVICE
 
-# ════════════════════════════════════════════════════════
-#  SERVICE
-# ════════════════════════════════════════════════════════
 async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     svc_id = query.data.replace("svc_", "")
-
     selected = None
     for cat_services in SERVICES.values():
         for svc in cat_services:
             if svc["id"] == svc_id:
                 selected = svc
                 break
-
     if not selected:
         await query.edit_message_text("❌ Service not found.")
         return ConversationHandler.END
-
     ctx.user_data["service"] = selected
     ctx.user_data["service_name"] = selected["name"][lang]
     ctx.user_data["service_price"] = selected["price"]
-
     await query.edit_message_text(
         t["enter_imei"].format(
             service=selected["name"][lang],
@@ -121,50 +100,37 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return IMEI
 
-# ════════════════════════════════════════════════════════
-#  IMEI
-# ════════════════════════════════════════════════════════
 async def get_imei(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     imei = update.message.text.strip()
-
     if not imei.isdigit() or len(imei) not in [15, 16]:
         await update.message.reply_text(t["invalid_imei"])
         return IMEI
-
     ctx.user_data["imei"] = imei
     await update.message.reply_text(t["enter_email"], parse_mode="Markdown")
     return EMAIL
 
-# ════════════════════════════════════════════════════════
-#  EMAIL
-# ════════════════════════════════════════════════════════
 async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     email = update.message.text.strip()
-
     if "@" not in email or "." not in email:
         await update.message.reply_text(t["invalid_email"])
         return EMAIL
-
     ctx.user_data["email"] = email
-
     keyboard = []
     for method in PAYMENT_METHODS:
-        # Only show methods that have an address configured
         cid = method.get("crypto_id")
         if cid:
             wallet_info = CRYPTO_WALLETS.get(cid, {})
             if not wallet_info.get("address"):
-                continue  # skip unconfigured crypto
+                continue
         else:
             if not method.get("address") and method["id"] not in ["zelle", "paypal"]:
                 continue
         keyboard.append([InlineKeyboardButton(method["label"], callback_data=f"pay_{method['id']}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
-
     await update.message.reply_text(
         t["choose_payment"],
         parse_mode="Markdown",
@@ -172,27 +138,20 @@ async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return PAYMENT
 
-# ════════════════════════════════════════════════════════
-#  PAYMENT
-# ════════════════════════════════════════════════════════
 async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
     pay_id = query.data.replace("pay_", "")
-
     selected_pay = None
     for method in PAYMENT_METHODS:
         if method["id"] == pay_id:
             selected_pay = method
             break
-
     ctx.user_data["payment_method"] = selected_pay["label"]
     ctx.user_data["payment_id"] = pay_id
-
     base_price = ctx.user_data["service_price"]
-
     if pay_id == "zelle":
         surcharge = base_price * (ZELLE_SURCHARGE_PERCENT / 100)
         final_price = base_price + surcharge
@@ -206,12 +165,10 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     else:
         ctx.user_data["final_price"] = base_price
         price_note = f"💰 **${base_price:.2f}**"
-
     keyboard = [
         [InlineKeyboardButton(t["btn_confirm"], callback_data="confirm_order")],
         [InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")]
     ]
-
     summary = t["order_summary"].format(
         service=ctx.user_data["service_name"],
         imei=ctx.user_data["imei"],
@@ -220,7 +177,6 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         price_note=price_note,
         time=ctx.user_data["service"]["time"]
     )
-
     await query.edit_message_text(
         summary,
         parse_mode="Markdown",
@@ -228,9 +184,6 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return CONFIRM
 
-# ════════════════════════════════════════════════════════
-#  CONFIRM ORDER
-# ════════════════════════════════════════════════════════
 async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -238,8 +191,6 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     t = TEXTS[lang]
     user = query.from_user
     data = ctx.user_data
-
-    # ── Notify ADMIN ──────────────────────────────────
     admin_msg = (
         f"🔔 *NEW ORDER / NUEVO PEDIDO*\n"
         f"{'─'*35}\n"
@@ -255,8 +206,6 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"👉 Reply with: `/pay {user.id}` then send payment instructions."
     )
     await ctx.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_msg, parse_mode="Markdown")
-
-    # ── Tell client order received ─────────────────────
     await query.edit_message_text(
         t["order_received"].format(
             name=BOT_NAME,
@@ -269,12 +218,7 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
-# ════════════════════════════════════════════════════════
-#  ADMIN: /pay <user_id>  →  next message goes to client
-#         /paycrypto <user_id> <pay_id>  →  sends wallet + QR
-# ════════════════════════════════════════════════════════
 async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Admin sends manual payment instructions to client."""
     if str(update.effective_user.id) != str(ADMIN_CHAT_ID):
         return
     args = ctx.args
@@ -293,22 +237,18 @@ async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Admin sends crypto wallet + QR automatically to client."""
     if str(update.effective_user.id) != str(ADMIN_CHAT_ID):
         return
     args = ctx.args
     if len(args) < 2:
         await update.message.reply_text("Usage: /paycrypto <user_id> <crypto_id>\nExample: /paycrypto 123456789 usdt_trc20")
         return
-
     target_id = args[0]
     crypto_id = args[1]
     wallet_info = CRYPTO_WALLETS.get(crypto_id)
-
     if not wallet_info or not wallet_info.get("address"):
         await update.message.reply_text(f"❌ Wallet '{crypto_id}' not configured. Edit config.py first.")
         return
-
     msg = (
         f"💳 *Payment Instructions / Instrucciones de Pago*\n\n"
         f"{'─'*30}\n"
@@ -318,10 +258,7 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"{'─'*30}\n\n"
         f"📸 *Scan QR below / Escanea el QR:*"
     )
-
     await ctx.bot.send_message(chat_id=target_id, text=msg, parse_mode="Markdown")
-
-    # Send QR image if file exists
     qr_file = wallet_info.get("qr_image", "")
     if qr_file and os.path.exists(qr_file):
         with open(qr_file, "rb") as f:
@@ -337,11 +274,9 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             text="📋 Copy the address above carefully. Once you've sent payment, reply here.",
             parse_mode="Markdown"
         )
-
     await update.message.reply_text(f"✅ Wallet + QR sent to user {target_id}.")
 
 async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Forward admin's next message to client after /pay command."""
     if str(update.effective_user.id) != str(ADMIN_CHAT_ID):
         return
     target = ctx.user_data.get("pending_pay_user")
@@ -355,9 +290,6 @@ async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Message sent to user {target}.")
     ctx.user_data.pop("pending_pay_user", None)
 
-# ════════════════════════════════════════════════════════
-#  BACK / CANCEL
-# ════════════════════════════════════════════════════════
 async def back_categories(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -383,9 +315,7 @@ async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data.clear()
     return ConversationHandler.END
 
-import asyncio
-
-async def run():
+if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -420,7 +350,4 @@ async def run():
         forward_payment
     ))
     print(f"🤖 {BOT_NAME} is running...")
-    await app.run_polling()
-
-if __name__ == "__main__":
-    asyncio.run(run())
+    app.run_polling()
