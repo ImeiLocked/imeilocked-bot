@@ -1,12 +1,3 @@
-"""
-╔══════════════════════════════════════════════════════════╗
-║           UNLOCK SERVICES BOT - MAIN FILE                ║
-║  Para cambiar nombre/marca: edita config.py              ║
-║  Para cambiar servicios: edita services.py               ║
-║  Para cambiar precios/pagos/wallets: edita config.py     ║
-╚══════════════════════════════════════════════════════════╝
-"""
-
 import logging
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -60,37 +51,47 @@ async def select_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     t = TEXTS[lang]
     cat = query.data.replace("cat_", "")
     ctx.user_data["category"] = cat
-    keyboard = []
-    for svc in SERVICES[cat]:
-        label = f"{svc['name'][lang]}  💰 ${svc['price']:.2f}  ⏱ {svc['time']}"
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"svc_{svc['id']}")])
-    keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_categories")])
-    await query.edit_message_text(
-        t["select_service"].format(category=cat),
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+
+    services_list = SERVICES[cat]
+    ctx.user_data["current_services"] = services_list
+
+    if lang == "es":
+        msg = f"*{cat}*\n\nElige el número del servicio que deseas:\n\n"
+        for i, svc in enumerate(services_list, 1):
+            msg += f"*{i}.* {svc['name']['es']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
+        msg += "✏️ _Escribe el número del servicio:_"
+    else:
+        msg = f"*{cat}*\n\nChoose the number of the service you want:\n\n"
+        for i, svc in enumerate(services_list, 1):
+            msg += f"*{i}.* {svc['name']['en']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
+        msg += "✏️ _Type the service number:_"
+
+    keyboard = [[InlineKeyboardButton(t["btn_back"], callback_data="back_categories")]]
+    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     return SERVICE
 
 async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
     lang = ctx.user_data.get("lang", "en")
     t = TEXTS[lang]
-    svc_id = query.data.replace("svc_", "")
-    selected = None
-    for cat_services in SERVICES.values():
-        for svc in cat_services:
-            if svc["id"] == svc_id:
-                selected = svc
-                break
-    if not selected:
-        await query.edit_message_text("❌ Service not found.")
-        return ConversationHandler.END
+    services_list = ctx.user_data.get("current_services", [])
+
+    try:
+        num = int(update.message.text.strip())
+        if num < 1 or num > len(services_list):
+            raise ValueError
+    except ValueError:
+        if lang == "es":
+            await update.message.reply_text(f"❌ Por favor escribe un número entre 1 y {len(services_list)}.")
+        else:
+            await update.message.reply_text(f"❌ Please type a number between 1 and {len(services_list)}.")
+        return SERVICE
+
+    selected = services_list[num - 1]
     ctx.user_data["service"] = selected
     ctx.user_data["service_name"] = selected["name"][lang]
     ctx.user_data["service_price"] = selected["price"]
-    await query.edit_message_text(
+
+    await update.message.reply_text(
         t["enter_imei"].format(
             service=selected["name"][lang],
             price=selected["price"],
@@ -177,11 +178,7 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         price_note=price_note,
         time=ctx.user_data["service"]["time"]
     )
-    await query.edit_message_text(
-        summary,
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    await query.edit_message_text(summary, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     return CONFIRM
 
 async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -247,7 +244,7 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     crypto_id = args[1]
     wallet_info = CRYPTO_WALLETS.get(crypto_id)
     if not wallet_info or not wallet_info.get("address"):
-        await update.message.reply_text(f"❌ Wallet '{crypto_id}' not configured. Edit config.py first.")
+        await update.message.reply_text(f"❌ Wallet '{crypto_id}' not configured.")
         return
     msg = (
         f"💳 *Payment Instructions / Instrucciones de Pago*\n\n"
@@ -263,17 +260,12 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if qr_file and os.path.exists(qr_file):
         with open(qr_file, "rb") as f:
             await ctx.bot.send_photo(
-                chat_id=target_id,
-                photo=f,
-                caption=f"✅ Send *exactly* the amount quoted to this address.\n\n📩 Reply here once sent.",
+                chat_id=target_id, photo=f,
+                caption="✅ Send *exactly* the amount quoted.\n\n📩 Reply here once sent.",
                 parse_mode="Markdown"
             )
     else:
-        await ctx.bot.send_message(
-            chat_id=target_id,
-            text="📋 Copy the address above carefully. Once you've sent payment, reply here.",
-            parse_mode="Markdown"
-        )
+        await ctx.bot.send_message(chat_id=target_id, text="📋 Copy the address above carefully. Once sent, reply here.", parse_mode="Markdown")
     await update.message.reply_text(f"✅ Wallet + QR sent to user {target_id}.")
 
 async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -325,8 +317,8 @@ if __name__ == "__main__":
                 CallbackQueryHandler(select_category, pattern="^cat_"),
                 CallbackQueryHandler(cancel, pattern="^cancel$"),
             ],
-            SERVICE:  [
-                CallbackQueryHandler(select_service, pattern="^svc_"),
+            SERVICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, select_service),
                 CallbackQueryHandler(back_categories, pattern="^back_categories$"),
             ],
             IMEI:     [MessageHandler(filters.TEXT & ~filters.COMMAND, get_imei)],
