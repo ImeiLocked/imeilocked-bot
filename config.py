@@ -9,8 +9,8 @@ CRYPTO_WALLETS = {
     "usdt_trc20": {
         "label": "💚 USDT TRC20 (Tron)",
         "address": "TAXyPWxMyUyeUikVQKJ418EfeFU8DZvpAS",
-        "qr_image": "qr_usdt_trc20.jpg",
-        "network_note": "⚠️ Usa SOLO la red TRC20 (Tron). Enviar por otra red = pérdida de fondos.",
+        "qr_image": "qr_usdt_trc20.jpg.jpeg",
+        "network_note": "⚠️ Usa SOLO la red TRC20 (Tron). Enviar por otra red = perdida de fondos.",
     },
     "usdt_erc20": {
         "label": "🔵 USDT ERC20 (Ethereum)",
