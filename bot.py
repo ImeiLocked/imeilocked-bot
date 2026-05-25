@@ -12,7 +12,7 @@ from texts import TEXTS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-LANG, COMPANY, SUBCATEGORY, SERVICE, IMEI, EMAIL, PAYMENT, CONFIRM = range(8)
+LANG, COMPANY, SUBCATEGORY, SERVICE, IMEI, EMAIL, PAYMENT, CONFIRM, WAITING = range(9)
 
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data.clear()
@@ -57,10 +57,10 @@ async def select_company(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton(subcat, callback_data=f"subcat_{subcat}")])
     keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_companies")])
     if lang == "es":
-        msg = f"📂 *{company}*\n\nSelecciona una subcategoría:"
+        msg = f"📂 {company}\n\nSelecciona una subcategoria:"
     else:
-        msg = f"📂 *{company}*\n\nSelect a subcategory:"
-    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        msg = f"📂 {company}\n\nSelect a subcategory:"
+    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
     return SUBCATEGORY
 
 async def select_subcategory(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -75,14 +75,12 @@ async def select_subcategory(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["current_services"] = services_list
 
     if lang == "es":
-        msg = f"📂 {company}\n➡️ {subcat}\n\n"
-        msg += "Elige el número del servicio que deseas:\n\n"
+        msg = f"📂 {company}\n➡️ {subcat}\n\nElige el numero del servicio que deseas:\n\n"
         for i, svc in enumerate(services_list, 1):
             msg += f"{i}. {svc['name']['es']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
-        msg += "✏️ Escribe el número del servicio:"
+        msg += "✏️ Escribe el numero del servicio:"
     else:
-        msg = f"📂 {company}\n➡️ {subcat}\n\n"
-        msg += "Choose the number of the service you want:\n\n"
+        msg = f"📂 {company}\n➡️ {subcat}\n\nChoose the number of the service you want:\n\n"
         for i, svc in enumerate(services_list, 1):
             msg += f"{i}. {svc['name']['en']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
         msg += "✏️ Type the service number:"
@@ -93,7 +91,6 @@ async def select_subcategory(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lang = ctx.user_data.get("lang", "en")
-    t = TEXTS[lang]
     services_list = ctx.user_data.get("current_services", [])
     try:
         num = int(update.message.text.strip())
@@ -101,10 +98,11 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             raise ValueError
     except ValueError:
         if lang == "es":
-            await update.message.reply_text(f"❌ Por favor escribe un número entre 1 y {len(services_list)}.")
+            await update.message.reply_text(f"❌ Por favor escribe un numero entre 1 y {len(services_list)}.")
         else:
             await update.message.reply_text(f"❌ Please type a number between 1 and {len(services_list)}.")
         return SERVICE
+
     selected = services_list[num - 1]
     ctx.user_data["service"] = selected
     ctx.user_data["service_name"] = selected["name"][lang]
@@ -117,7 +115,7 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"💰 Precio: ${selected['price']:.2f}\n"
             f"⏱ Tiempo estimado: {selected['time']}\n\n"
             f"🔢 Por favor, ingresa el IMEI del dispositivo:\n"
-            f"(Marca *#06#* en el teléfono para obtenerlo)"
+            f"(Marca *#06#* en el telefono para obtenerlo)"
         )
     else:
         msg = (
@@ -141,7 +139,7 @@ async def get_imei(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["imei"] = imei
     if lang == "es":
         await update.message.reply_text(
-            "✅ IMEI recibido.\n\n📧 Ahora ingresa tu correo electrónico\n(Aquí te enviaremos el resultado del servicio)"
+            "✅ IMEI recibido.\n\n📧 Ahora ingresa tu correo electronico\n(Aqui te enviaremos el resultado del servicio)"
         )
     else:
         await update.message.reply_text(
@@ -170,7 +168,7 @@ async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton(method["label"], callback_data=f"pay_{method['id']}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
     if lang == "es":
-        await update.message.reply_text("💳 Selecciona el método de pago:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("💳 Selecciona el metodo de pago:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         await update.message.reply_text("💳 Select payment method:", reply_markup=InlineKeyboardMarkup(keyboard))
     return PAYMENT
@@ -217,7 +215,7 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"{price_note}\n"
             f"⏱ Tiempo estimado: {ctx.user_data['service']['time']}\n"
             f"──────────────────────────────\n\n"
-            f"¿Confirmas tu pedido?"
+            f"Confirmas tu pedido?"
         )
     else:
         summary = (
@@ -254,9 +252,91 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"💰 Amount: ${data['final_price']:.2f}\n"
         f"⏱ ETA: {data['service']['time']}\n"
         f"{'─'*35}\n"
-        f"Reply with: /pay {user.id} then send payment instructions."
+        f"Reply: /pay {user.id} to send instructions."
     )
     await ctx.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_msg)
+
+    pay_id = data.get("payment_id", "")
+    crypto_ids = ["usdt_trc20", "usdt_erc20", "btc"]
+
+    if pay_id in crypto_ids:
+        wallet_info = CRYPTO_WALLETS.get(pay_id)
+        if wallet_info and wallet_info.get("address"):
+            if lang == "es":
+                wallet_msg = (
+                    f"💳 Instrucciones de Pago\n\n"
+                    f"{'─'*30}\n"
+                    f"🔗 Red: {wallet_info['label']}\n"
+                    f"📋 Direccion:\n{wallet_info['address']}\n\n"
+                    f"{wallet_info['network_note']}\n"
+                    f"{'─'*30}\n\n"
+                    f"📸 Escanea el QR o copia la direccion de arriba.\n"
+                    f"Envia exactamente el monto indicado y luego enviame el comprobante de pago aqui."
+                )
+            else:
+                wallet_msg = (
+                    f"💳 Payment Instructions\n\n"
+                    f"{'─'*30}\n"
+                    f"🔗 Network: {wallet_info['label']}\n"
+                    f"📋 Address:\n{wallet_info['address']}\n\n"
+                    f"{wallet_info['network_note']}\n"
+                    f"{'─'*30}\n\n"
+                    f"📸 Scan the QR or copy the address above.\n"
+                    f"Send exactly the amount quoted and then send me the payment receipt here."
+                )
+            await query.message.reply_text(wallet_msg)
+            qr_file = wallet_info.get("qr_image", "")
+            if qr_file and os.path.exists(qr_file):
+                with open(qr_file, "rb") as f:
+                    await ctx.bot.send_photo(chat_id=user.id, photo=f)
+
+    elif pay_id == "zelle":
+        if lang == "es":
+            zelle_msg = (
+                f"🏦 Pago por Zelle\n\n"
+                f"Para completar tu pago por Zelle, contacta directamente "
+                f"a nuestro agente quien te proporcionara el numero de Zelle.\n\n"
+                f"👉 Escribenos aqui: https://t.me/ImeiLocked\n\n"
+                f"Por favor menciona al contactarnos:\n"
+                f"📱 Servicio: {data['service_name']}\n"
+                f"💰 Monto a pagar: ${data['final_price']:.2f}\n"
+                f"(Ya incluye el recargo del {ZELLE_SURCHARGE_PERCENT}%)"
+            )
+        else:
+            zelle_msg = (
+                f"🏦 Zelle Payment\n\n"
+                f"To complete your Zelle payment, contact our agent directly. "
+                f"They will provide you with the Zelle number.\n\n"
+                f"👉 Contact us here: https://t.me/ImeiLocked\n\n"
+                f"Please mention when contacting us:\n"
+                f"📱 Service: {data['service_name']}\n"
+                f"💰 Amount to pay: ${data['final_price']:.2f}\n"
+                f"(Already includes the {ZELLE_SURCHARGE_PERCENT}% surcharge)"
+            )
+        await query.message.reply_text(zelle_msg)
+
+    elif pay_id == "paypal":
+        if lang == "es":
+            paypal_msg = (
+                f"🔵 Pago por PayPal\n\n"
+                f"Para completar tu pago por PayPal, contacta directamente "
+                f"a nuestro agente quien te proporcionara los datos de pago.\n\n"
+                f"👉 Escribenos aqui: https://t.me/ImeiLocked\n\n"
+                f"Por favor menciona al contactarnos:\n"
+                f"📱 Servicio: {data['service_name']}\n"
+                f"💰 Monto a pagar: ${data['final_price']:.2f}"
+            )
+        else:
+            paypal_msg = (
+                f"🔵 PayPal Payment\n\n"
+                f"To complete your PayPal payment, contact our agent directly. "
+                f"They will provide you with the payment details.\n\n"
+                f"👉 Contact us here: https://t.me/ImeiLocked\n\n"
+                f"Please mention when contacting us:\n"
+                f"📱 Service: {data['service_name']}\n"
+                f"💰 Amount to pay: ${data['final_price']:.2f}"
+            )
+        await query.message.reply_text(paypal_msg)
 
     if lang == "es":
         client_msg = (
@@ -265,11 +345,8 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"🔢 IMEI: {data['imei']}\n"
             f"💰 Total: ${data['final_price']:.2f}\n"
             f"⏱ Tiempo estimado: {data['service']['time']}\n\n"
-            f"⏳ Proximos pasos:\n"
-            f"1. Recibiras las instrucciones de pago en breve.\n"
-            f"2. Una vez confirmado el pago, procesaremos tu pedido.\n"
-            f"3. El resultado se enviara a tu correo.\n\n"
-            f"Si tienes dudas, nuestro agente te contactara pronto."
+            f"✅ Una vez que realices el pago, envia el comprobante aqui mismo.\n"
+            f"Nuestro agente lo revisara y procesara tu pedido."
         )
     else:
         client_msg = (
@@ -278,14 +355,64 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"🔢 IMEI: {data['imei']}\n"
             f"💰 Total: ${data['final_price']:.2f}\n"
             f"⏱ Estimated time: {data['service']['time']}\n\n"
-            f"⏳ Next steps:\n"
-            f"1. You'll receive payment instructions shortly.\n"
-            f"2. Once payment is confirmed, we'll process your order.\n"
-            f"3. The result will be sent to your email.\n\n"
-            f"If you have questions, our agent will contact you soon."
+            f"✅ Once you make the payment, send the receipt here.\n"
+            f"Our agent will review and process your order."
         )
     await query.edit_message_text(client_msg)
-    return ConversationHandler.END
+
+    ctx.user_data["client_id"] = user.id
+    ctx.user_data["client_name"] = user.full_name
+    ctx.user_data["client_username"] = user.username or "N/A"
+
+    return WAITING
+
+async def forward_to_admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    client_name = ctx.user_data.get("client_name", user.full_name)
+    client_username = ctx.user_data.get("client_username", user.username or "N/A")
+    service_name = ctx.user_data.get("service_name", "N/A")
+
+    header = (
+        f"📨 MENSAJE DE CLIENTE\n"
+        f"👤 {client_name} (@{client_username})\n"
+        f"🆔 ID: {user.id}\n"
+        f"📱 Servicio: {service_name}\n"
+        f"{'─'*30}\n"
+    )
+
+    if update.message.photo:
+        photo = update.message.photo[-1]
+        caption = update.message.caption or ""
+        await ctx.bot.send_photo(
+            chat_id=ADMIN_CHAT_ID,
+            photo=photo.file_id,
+            caption=f"{header}{caption}"
+        )
+        lang = ctx.user_data.get("lang", "en")
+        if lang == "es":
+            await update.message.reply_text("✅ Comprobante recibido. Nuestro agente lo revisara pronto.")
+        else:
+            await update.message.reply_text("✅ Receipt received. Our agent will review it shortly.")
+
+    elif update.message.document:
+        await ctx.bot.send_document(
+            chat_id=ADMIN_CHAT_ID,
+            document=update.message.document.file_id,
+            caption=f"{header}{update.message.caption or ''}"
+        )
+        lang = ctx.user_data.get("lang", "en")
+        if lang == "es":
+            await update.message.reply_text("✅ Archivo recibido. Nuestro agente lo revisara pronto.")
+        else:
+            await update.message.reply_text("✅ File received. Our agent will review it shortly.")
+
+    elif update.message.text:
+        await ctx.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=f"{header}{update.message.text}"
+        )
+
+    return WAITING
 
 async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != str(ADMIN_CHAT_ID):
@@ -323,18 +450,13 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"📋 Address / Direccion:\n{wallet_info['address']}\n\n"
         f"{wallet_info['network_note']}\n"
         f"{'─'*30}\n\n"
-        f"📸 Scan QR below / Escanea el QR:"
+        f"📸 Scan QR / Escanea el QR:"
     )
     await ctx.bot.send_message(chat_id=target_id, text=msg)
     qr_file = wallet_info.get("qr_image", "")
     if qr_file and os.path.exists(qr_file):
         with open(qr_file, "rb") as f:
-            await ctx.bot.send_photo(
-                chat_id=target_id, photo=f,
-                caption="✅ Send exactly the amount quoted.\n\n📩 Reply here once sent."
-            )
-    else:
-        await ctx.bot.send_message(chat_id=target_id, text="📋 Copy the address above carefully. Once sent, reply here.")
+            await ctx.bot.send_photo(chat_id=target_id, photo=f)
     await update.message.reply_text(f"✅ Wallet + QR sent to user {target_id}.")
 
 async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -421,6 +543,11 @@ if __name__ == "__main__":
             CONFIRM: [
                 CallbackQueryHandler(confirm_order, pattern="^confirm_order$"),
                 CallbackQueryHandler(cancel, pattern="^cancel$"),
+            ],
+            WAITING: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin),
+                MessageHandler(filters.PHOTO, forward_to_admin),
+                MessageHandler(filters.Document.ALL, forward_to_admin),
             ],
         },
         fallbacks=[CommandHandler("start", start)],
