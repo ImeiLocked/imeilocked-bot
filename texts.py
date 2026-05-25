@@ -1,11 +1,3 @@
-"""
-╔══════════════════════════════════════════════════════════╗
-║                      texts.py                            ║
-║  ✏️  EDITA ESTE ARCHIVO PARA CAMBIAR LOS MENSAJES        ║
-║     que el bot envía a los clientes                      ║
-╚══════════════════════════════════════════════════════════╝
-"""
-
 TEXTS = {
     "es": {
         "welcome": (
@@ -14,8 +6,7 @@ TEXTS = {
             "📋 Selecciona una categoría para ver los servicios disponibles:"
         ),
         "select_service": (
-            "📂 *Categoría: {category}*\n\n"
-            "Selecciona el servicio que necesitas:"
+            "📂 *Categoría: {category}*\n\nSelecciona el servicio que necesitas:"
         ),
         "enter_imei": (
             "✅ *Servicio seleccionado:*\n"
@@ -40,14 +31,14 @@ TEXTS = {
         ),
         "order_summary": (
             "📋 *RESUMEN DE TU PEDIDO*\n"
-            "{'─'*30}\n"
+            "──────────────────────────────\n"
             "📱 *Servicio:* {service}\n"
             "🔢 *IMEI:* `{imei}`\n"
             "📧 *Email:* {email}\n"
             "💳 *Pago:* {payment}\n"
             "{price_note}\n"
             "⏱ *Tiempo estimado:* {time}\n"
-            "{'─'*30}\n\n"
+            "──────────────────────────────\n\n"
             "¿Confirmas tu pedido?"
         ),
         "order_received": (
@@ -76,8 +67,7 @@ TEXTS = {
             "📋 Select a category to see available services:"
         ),
         "select_service": (
-            "📂 *Category: {category}*\n\n"
-            "Select the service you need:"
+            "📂 *Category: {category}*\n\nSelect the service you need:"
         ),
         "enter_imei": (
             "✅ *Service selected:*\n"
@@ -102,14 +92,14 @@ TEXTS = {
         ),
         "order_summary": (
             "📋 *ORDER SUMMARY*\n"
-            "{'─'*30}\n"
+            "──────────────────────────────\n"
             "📱 *Service:* {service}\n"
             "🔢 *IMEI:* `{imei}`\n"
             "📧 *Email:* {email}\n"
             "💳 *Payment:* {payment}\n"
             "{price_note}\n"
             "⏱ *Estimated time:* {time}\n"
-            "{'─'*30}\n\n"
+            "──────────────────────────────\n\n"
             "Do you confirm your order?"
         ),
         "order_received": (
