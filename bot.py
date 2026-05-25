@@ -75,20 +75,20 @@ async def select_subcategory(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["current_services"] = services_list
 
     if lang == "es":
-        msg = f"📂 *{company}*\n➡️ *{subcat}*\n\n"
+        msg = f"📂 {company}\n➡️ {subcat}\n\n"
         msg += "Elige el número del servicio que deseas:\n\n"
         for i, svc in enumerate(services_list, 1):
-            msg += f"*{i}.* {svc['name']['es']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
-        msg += "✏️ _Escribe el número del servicio:_"
+            msg += f"{i}. {svc['name']['es']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
+        msg += "✏️ Escribe el número del servicio:"
     else:
-        msg = f"📂 *{company}*\n➡️ *{subcat}*\n\n"
+        msg = f"📂 {company}\n➡️ {subcat}\n\n"
         msg += "Choose the number of the service you want:\n\n"
         for i, svc in enumerate(services_list, 1):
-            msg += f"*{i}.* {svc['name']['en']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
-        msg += "✏️ _Type the service number:_"
+            msg += f"{i}. {svc['name']['en']}\n💰 ${svc['price']:.2f} | ⏱ {svc['time']}\n\n"
+        msg += "✏️ Type the service number:"
 
-    keyboard = [[InlineKeyboardButton(t["btn_back"], callback_data=f"back_subcategories")]]
-    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    keyboard = [[InlineKeyboardButton(t["btn_back"], callback_data="back_subcategories")]]
+    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
     return SERVICE
 
 async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -109,14 +109,26 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["service"] = selected
     ctx.user_data["service_name"] = selected["name"][lang]
     ctx.user_data["service_price"] = selected["price"]
-    await update.message.reply_text(
-        t["enter_imei"].format(
-            service=selected["name"][lang],
-            price=selected["price"],
-            time=selected["time"]
-        ),
-        parse_mode="Markdown"
-    )
+
+    if lang == "es":
+        msg = (
+            f"✅ Servicio seleccionado:\n"
+            f"📱 {selected['name']['es']}\n"
+            f"💰 Precio: ${selected['price']:.2f}\n"
+            f"⏱ Tiempo estimado: {selected['time']}\n\n"
+            f"🔢 Por favor, ingresa el IMEI del dispositivo:\n"
+            f"(Marca *#06#* en el teléfono para obtenerlo)"
+        )
+    else:
+        msg = (
+            f"✅ Service selected:\n"
+            f"📱 {selected['name']['en']}\n"
+            f"💰 Price: ${selected['price']:.2f}\n"
+            f"⏱ Estimated time: {selected['time']}\n\n"
+            f"🔢 Please enter the device IMEI:\n"
+            f"(Dial *#06#* on the phone to get it)"
+        )
+    await update.message.reply_text(msg)
     return IMEI
 
 async def get_imei(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -127,7 +139,14 @@ async def get_imei(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(t["invalid_imei"])
         return IMEI
     ctx.user_data["imei"] = imei
-    await update.message.reply_text(t["enter_email"], parse_mode="Markdown")
+    if lang == "es":
+        await update.message.reply_text(
+            "✅ IMEI recibido.\n\n📧 Ahora ingresa tu correo electrónico\n(Aquí te enviaremos el resultado del servicio)"
+        )
+    else:
+        await update.message.reply_text(
+            "✅ IMEI received.\n\n📧 Now enter your email address\n(We'll send the service result here)"
+        )
     return EMAIL
 
 async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -150,11 +169,10 @@ async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 continue
         keyboard.append([InlineKeyboardButton(method["label"], callback_data=f"pay_{method['id']}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
-    await update.message.reply_text(
-        t["choose_payment"],
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    if lang == "es":
+        await update.message.reply_text("💳 Selecciona el método de pago:", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.message.reply_text("💳 Select payment method:", reply_markup=InlineKeyboardMarkup(keyboard))
     return PAYMENT
 
 async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -175,62 +193,98 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         surcharge = base_price * (ZELLE_SURCHARGE_PERCENT / 100)
         final_price = base_price + surcharge
         ctx.user_data["final_price"] = final_price
-        price_note = t["zelle_surcharge"].format(
-            percent=ZELLE_SURCHARGE_PERCENT,
-            original=base_price,
-            surcharge=surcharge,
-            final=final_price
-        )
+        if lang == "es":
+            price_note = f"💰 Precio base: ${base_price:.2f}\n➕ Recargo Zelle ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n💵 Total: ${final_price:.2f}"
+        else:
+            price_note = f"💰 Base price: ${base_price:.2f}\n➕ Zelle surcharge ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n💵 Total: ${final_price:.2f}"
     else:
         ctx.user_data["final_price"] = base_price
-        price_note = f"💰 **${base_price:.2f}**"
+        price_note = f"💰 ${base_price:.2f}"
+
     keyboard = [
         [InlineKeyboardButton(t["btn_confirm"], callback_data="confirm_order")],
         [InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")]
     ]
-    summary = t["order_summary"].format(
-        service=ctx.user_data["service_name"],
-        imei=ctx.user_data["imei"],
-        email=ctx.user_data["email"],
-        payment=selected_pay["label"],
-        price_note=price_note,
-        time=ctx.user_data["service"]["time"]
-    )
-    await query.edit_message_text(summary, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    if lang == "es":
+        summary = (
+            f"📋 RESUMEN DE TU PEDIDO\n"
+            f"──────────────────────────────\n"
+            f"📱 Servicio: {ctx.user_data['service_name']}\n"
+            f"🔢 IMEI: {ctx.user_data['imei']}\n"
+            f"📧 Email: {ctx.user_data['email']}\n"
+            f"💳 Pago: {selected_pay['label']}\n"
+            f"{price_note}\n"
+            f"⏱ Tiempo estimado: {ctx.user_data['service']['time']}\n"
+            f"──────────────────────────────\n\n"
+            f"¿Confirmas tu pedido?"
+        )
+    else:
+        summary = (
+            f"📋 ORDER SUMMARY\n"
+            f"──────────────────────────────\n"
+            f"📱 Service: {ctx.user_data['service_name']}\n"
+            f"🔢 IMEI: {ctx.user_data['imei']}\n"
+            f"📧 Email: {ctx.user_data['email']}\n"
+            f"💳 Payment: {selected_pay['label']}\n"
+            f"{price_note}\n"
+            f"⏱ Estimated time: {ctx.user_data['service']['time']}\n"
+            f"──────────────────────────────\n\n"
+            f"Do you confirm your order?"
+        )
+    await query.edit_message_text(summary, reply_markup=InlineKeyboardMarkup(keyboard))
     return CONFIRM
 
 async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     lang = ctx.user_data.get("lang", "en")
-    t = TEXTS[lang]
     user = query.from_user
     data = ctx.user_data
+
     admin_msg = (
-        f"🔔 *NEW ORDER / NUEVO PEDIDO*\n"
+        f"🔔 NEW ORDER / NUEVO PEDIDO\n"
         f"{'─'*35}\n"
-        f"👤 *Client:* {user.full_name}\n"
-        f"🆔 *Telegram:* @{user.username or 'N/A'} (`{user.id}`)\n"
-        f"📱 *Service:* {data['service_name']}\n"
-        f"🔢 *IMEI:* `{data['imei']}`\n"
-        f"📧 *Email:* {data['email']}\n"
-        f"💳 *Payment:* {data['payment_method']}\n"
-        f"💰 *Amount:* ${data['final_price']:.2f}\n"
-        f"⏱ *ETA:* {data['service']['time']}\n"
+        f"👤 Client: {user.full_name}\n"
+        f"🆔 Telegram: @{user.username or 'N/A'} ({user.id})\n"
+        f"📱 Service: {data['service_name']}\n"
+        f"🔢 IMEI: {data['imei']}\n"
+        f"📧 Email: {data['email']}\n"
+        f"💳 Payment: {data['payment_method']}\n"
+        f"💰 Amount: ${data['final_price']:.2f}\n"
+        f"⏱ ETA: {data['service']['time']}\n"
         f"{'─'*35}\n"
-        f"👉 Reply with: `/pay {user.id}` then send payment instructions."
+        f"Reply with: /pay {user.id} then send payment instructions."
     )
-    await ctx.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_msg, parse_mode="Markdown")
-    await query.edit_message_text(
-        t["order_received"].format(
-            name=BOT_NAME,
-            service=data["service_name"],
-            imei=data["imei"],
-            price=data["final_price"],
-            time=data["service"]["time"]
-        ),
-        parse_mode="Markdown"
-    )
+    await ctx.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_msg)
+
+    if lang == "es":
+        client_msg = (
+            f"🎉 Pedido recibido!\n\n"
+            f"📱 Servicio: {data['service_name']}\n"
+            f"🔢 IMEI: {data['imei']}\n"
+            f"💰 Total: ${data['final_price']:.2f}\n"
+            f"⏱ Tiempo estimado: {data['service']['time']}\n\n"
+            f"⏳ Proximos pasos:\n"
+            f"1. Recibiras las instrucciones de pago en breve.\n"
+            f"2. Una vez confirmado el pago, procesaremos tu pedido.\n"
+            f"3. El resultado se enviara a tu correo.\n\n"
+            f"Si tienes dudas, nuestro agente te contactara pronto."
+        )
+    else:
+        client_msg = (
+            f"🎉 Order received!\n\n"
+            f"📱 Service: {data['service_name']}\n"
+            f"🔢 IMEI: {data['imei']}\n"
+            f"💰 Total: ${data['final_price']:.2f}\n"
+            f"⏱ Estimated time: {data['service']['time']}\n\n"
+            f"⏳ Next steps:\n"
+            f"1. You'll receive payment instructions shortly.\n"
+            f"2. Once payment is confirmed, we'll process your order.\n"
+            f"3. The result will be sent to your email.\n\n"
+            f"If you have questions, our agent will contact you soon."
+        )
+    await query.edit_message_text(client_msg)
     return ConversationHandler.END
 
 async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -246,8 +300,7 @@ async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     ctx.user_data["pending_pay_user"] = args[0]
     await update.message.reply_text(
-        f"✅ Ready. Your next message will be sent to user `{args[0]}`.\nWrite the payment instructions now.",
-        parse_mode="Markdown"
+        f"✅ Ready. Your next message will be sent to user {args[0]}.\nWrite the payment instructions now."
     )
 
 async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -264,25 +317,24 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Wallet '{crypto_id}' not configured.")
         return
     msg = (
-        f"💳 *Payment Instructions / Instrucciones de Pago*\n\n"
+        f"💳 Payment Instructions / Instrucciones de Pago\n\n"
         f"{'─'*30}\n"
-        f"🔗 *Network / Red:* {wallet_info['label']}\n"
-        f"📋 *Address / Dirección:*\n`{wallet_info['address']}`\n\n"
+        f"🔗 Network / Red: {wallet_info['label']}\n"
+        f"📋 Address / Direccion:\n{wallet_info['address']}\n\n"
         f"{wallet_info['network_note']}\n"
         f"{'─'*30}\n\n"
-        f"📸 *Scan QR below / Escanea el QR:*"
+        f"📸 Scan QR below / Escanea el QR:"
     )
-    await ctx.bot.send_message(chat_id=target_id, text=msg, parse_mode="Markdown")
+    await ctx.bot.send_message(chat_id=target_id, text=msg)
     qr_file = wallet_info.get("qr_image", "")
     if qr_file and os.path.exists(qr_file):
         with open(qr_file, "rb") as f:
             await ctx.bot.send_photo(
                 chat_id=target_id, photo=f,
-                caption="✅ Send *exactly* the amount quoted.\n\n📩 Reply here once sent.",
-                parse_mode="Markdown"
+                caption="✅ Send exactly the amount quoted.\n\n📩 Reply here once sent."
             )
     else:
-        await ctx.bot.send_message(chat_id=target_id, text="📋 Copy the address above carefully. Once sent, reply here.", parse_mode="Markdown")
+        await ctx.bot.send_message(chat_id=target_id, text="📋 Copy the address above carefully. Once sent, reply here.")
     await update.message.reply_text(f"✅ Wallet + QR sent to user {target_id}.")
 
 async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -293,8 +345,7 @@ async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     await ctx.bot.send_message(
         chat_id=target,
-        text=f"💳 *Payment Instructions / Instrucciones de Pago:*\n\n{update.message.text}",
-        parse_mode="Markdown"
+        text=f"💳 Payment Instructions / Instrucciones de Pago:\n\n{update.message.text}"
     )
     await update.message.reply_text(f"✅ Message sent to user {target}.")
     ctx.user_data.pop("pending_pay_user", None)
@@ -327,10 +378,10 @@ async def back_subcategories(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton(subcat, callback_data=f"subcat_{subcat}")])
     keyboard.append([InlineKeyboardButton(t["btn_back"], callback_data="back_companies")])
     if lang == "es":
-        msg = f"📂 *{company}*\n\nSelecciona una subcategoría:"
+        msg = f"📂 {company}\n\nSelecciona una subcategoria:"
     else:
-        msg = f"📂 *{company}*\n\nSelect a subcategory:"
-    await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        msg = f"📂 {company}\n\nSelect a subcategory:"
+    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
     return SUBCATEGORY
 
 async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
