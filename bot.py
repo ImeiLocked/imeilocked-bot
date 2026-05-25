@@ -114,7 +114,7 @@ async def select_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"📱 {selected['name']['es']}\n"
             f"💰 Precio: ${selected['price']:.2f}\n"
             f"⏱ Tiempo estimado: {selected['time']}\n\n"
-            f"🔢 Por favor, ingresa el IMEI del dispositivo:\n"
+            f"🔢 Por favor ingresa el IMEI del dispositivo:\n"
             f"(Marca *#06#* en el telefono para obtenerlo)"
         )
     else:
@@ -139,11 +139,13 @@ async def get_imei(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["imei"] = imei
     if lang == "es":
         await update.message.reply_text(
-            "✅ IMEI recibido.\n\n📧 Ahora ingresa tu correo electronico\n(Aqui te enviaremos el resultado del servicio)"
+            "✅ IMEI recibido.\n\n📧 Ahora ingresa tu correo electronico\n"
+            "(Aqui te enviaremos el resultado del servicio)"
         )
     else:
         await update.message.reply_text(
-            "✅ IMEI received.\n\n📧 Now enter your email address\n(We'll send the service result here)"
+            "✅ IMEI received.\n\n📧 Now enter your email address\n"
+            "(We'll send the service result here)"
         )
     return EMAIL
 
@@ -168,9 +170,15 @@ async def get_email(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton(method["label"], callback_data=f"pay_{method['id']}")])
     keyboard.append([InlineKeyboardButton(t["btn_cancel"], callback_data="cancel")])
     if lang == "es":
-        await update.message.reply_text("💳 Selecciona el metodo de pago:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text(
+            "💳 Selecciona el metodo de pago:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     else:
-        await update.message.reply_text("💳 Select payment method:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text(
+            "💳 Select payment method:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     return PAYMENT
 
 async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -192,9 +200,17 @@ async def select_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         final_price = base_price + surcharge
         ctx.user_data["final_price"] = final_price
         if lang == "es":
-            price_note = f"💰 Precio base: ${base_price:.2f}\n➕ Recargo Zelle ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n💵 Total: ${final_price:.2f}"
+            price_note = (
+                f"💰 Precio base: ${base_price:.2f}\n"
+                f"➕ Recargo Zelle ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n"
+                f"💵 Total: ${final_price:.2f}"
+            )
         else:
-            price_note = f"💰 Base price: ${base_price:.2f}\n➕ Zelle surcharge ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n💵 Total: ${final_price:.2f}"
+            price_note = (
+                f"💰 Base price: ${base_price:.2f}\n"
+                f"➕ Zelle surcharge ({ZELLE_SURCHARGE_PERCENT}%): +${surcharge:.2f}\n"
+                f"💵 Total: ${final_price:.2f}"
+            )
     else:
         ctx.user_data["final_price"] = base_price
         price_note = f"💰 ${base_price:.2f}"
@@ -262,33 +278,52 @@ async def confirm_order(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if pay_id in crypto_ids:
         wallet_info = CRYPTO_WALLETS.get(pay_id)
         if wallet_info and wallet_info.get("address"):
+
+            # Mensaje 1 — instrucciones + red + monto
             if lang == "es":
-                wallet_msg = (
+                msg1 = (
                     f"💳 Instrucciones de Pago\n\n"
-                    f"{'─'*30}\n"
                     f"🔗 Red: {wallet_info['label']}\n"
-                    f"📋 Direccion:\n{wallet_info['address']}\n\n"
-                    f"{wallet_info['network_note']}\n"
-                    f"{'─'*30}\n\n"
-                    f"📸 Escanea el QR o copia la direccion de arriba.\n"
-                    f"Envia exactamente el monto indicado y luego enviame el comprobante de pago aqui."
+                    f"💰 Monto exacto a enviar: ${data['final_price']:.2f}\n\n"
+                    f"{wallet_info['network_note']}"
                 )
             else:
-                wallet_msg = (
+                msg1 = (
                     f"💳 Payment Instructions\n\n"
-                    f"{'─'*30}\n"
                     f"🔗 Network: {wallet_info['label']}\n"
-                    f"📋 Address:\n{wallet_info['address']}\n\n"
-                    f"{wallet_info['network_note']}\n"
-                    f"{'─'*30}\n\n"
-                    f"📸 Scan the QR or copy the address above.\n"
-                    f"Send exactly the amount quoted and then send me the payment receipt here."
+                    f"💰 Exact amount to send: ${data['final_price']:.2f}\n\n"
+                    f"{wallet_info['network_note']}"
                 )
-            await query.message.reply_text(wallet_msg)
+            await ctx.bot.send_message(chat_id=user.id, text=msg1)
+
+            # Mensaje 2 — SOLO la wallet para copiar facil
+            if lang == "es":
+                await ctx.bot.send_message(
+                    chat_id=user.id,
+                    text=f"📋 Direccion de pago\n(Manten presionado para copiar):\n\n{wallet_info['address']}"
+                )
+            else:
+                await ctx.bot.send_message(
+                    chat_id=user.id,
+                    text=f"📋 Payment address\n(Hold to copy):\n\n{wallet_info['address']}"
+                )
+
+            # Mensaje 3 — QR
             qr_file = wallet_info.get("qr_image", "")
             if qr_file and os.path.exists(qr_file):
                 with open(qr_file, "rb") as f:
-                    await ctx.bot.send_photo(chat_id=user.id, photo=f)
+                    if lang == "es":
+                        await ctx.bot.send_photo(
+                            chat_id=user.id,
+                            photo=f,
+                            caption="📸 Escanea este QR para enviar el pago."
+                        )
+                    else:
+                        await ctx.bot.send_photo(
+                            chat_id=user.id,
+                            photo=f,
+                            caption="📸 Scan this QR to send the payment."
+                        )
 
     elif pay_id == "zelle":
         if lang == "es":
@@ -390,9 +425,13 @@ async def forward_to_admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         lang = ctx.user_data.get("lang", "en")
         if lang == "es":
-            await update.message.reply_text("✅ Comprobante recibido. Nuestro agente lo revisara pronto.")
+            await update.message.reply_text(
+                "✅ Comprobante recibido. Nuestro agente lo revisara pronto."
+            )
         else:
-            await update.message.reply_text("✅ Receipt received. Our agent will review it shortly.")
+            await update.message.reply_text(
+                "✅ Receipt received. Our agent will review it shortly."
+            )
 
     elif update.message.document:
         await ctx.bot.send_document(
@@ -402,9 +441,13 @@ async def forward_to_admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         lang = ctx.user_data.get("lang", "en")
         if lang == "es":
-            await update.message.reply_text("✅ Archivo recibido. Nuestro agente lo revisara pronto.")
+            await update.message.reply_text(
+                "✅ Archivo recibido. Nuestro agente lo revisara pronto."
+            )
         else:
-            await update.message.reply_text("✅ File received. Our agent will review it shortly.")
+            await update.message.reply_text(
+                "✅ File received. Our agent will review it shortly."
+            )
 
     elif update.message.text:
         await ctx.bot.send_message(
@@ -427,7 +470,8 @@ async def cmd_pay(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     ctx.user_data["pending_pay_user"] = args[0]
     await update.message.reply_text(
-        f"✅ Ready. Your next message will be sent to user {args[0]}.\nWrite the payment instructions now."
+        f"✅ Ready. Your next message will be sent to user {args[0]}.\n"
+        f"Write the payment instructions now."
     )
 
 async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -435,7 +479,10 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     args = ctx.args
     if len(args) < 2:
-        await update.message.reply_text("Usage: /paycrypto <user_id> <crypto_id>\nExample: /paycrypto 123456789 usdt_trc20")
+        await update.message.reply_text(
+            "Usage: /paycrypto <user_id> <crypto_id>\n"
+            "Example: /paycrypto 123456789 usdt_trc20"
+        )
         return
     target_id = args[0]
     crypto_id = args[1]
@@ -446,17 +493,23 @@ async def cmd_paycrypto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     msg = (
         f"💳 Payment Instructions / Instrucciones de Pago\n\n"
         f"{'─'*30}\n"
-        f"🔗 Network / Red: {wallet_info['label']}\n"
-        f"📋 Address / Direccion:\n{wallet_info['address']}\n\n"
+        f"🔗 Network / Red: {wallet_info['label']}\n\n"
         f"{wallet_info['network_note']}\n"
-        f"{'─'*30}\n\n"
-        f"📸 Scan QR / Escanea el QR:"
+        f"{'─'*30}"
     )
     await ctx.bot.send_message(chat_id=target_id, text=msg)
+    await ctx.bot.send_message(
+        chat_id=target_id,
+        text=f"📋 Address / Direccion:\n\n{wallet_info['address']}"
+    )
     qr_file = wallet_info.get("qr_image", "")
     if qr_file and os.path.exists(qr_file):
         with open(qr_file, "rb") as f:
-            await ctx.bot.send_photo(chat_id=target_id, photo=f)
+            await ctx.bot.send_photo(
+                chat_id=target_id,
+                photo=f,
+                caption="📸 Scan QR / Escanea el QR"
+            )
     await update.message.reply_text(f"✅ Wallet + QR sent to user {target_id}.")
 
 async def forward_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
